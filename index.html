@@ -266,15 +266,6 @@ input[type=text]:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(124,109,
 <!-- toast -->
 <div id="toast"></div>
 
-<!-- debug panel -->
-<div id="debug-panel" style="position:fixed;left:12px;bottom:12px;background:rgba(0,0,0,.6);color:#fff;padding:8px;border-radius:8px;font-family:monospace;font-size:12px;z-index:999;max-width:320px">
-  <div><strong>Debug</strong></div>
-  <div id="dbg-fb">Firebase: -</div>
-  <div id="dbg-auth">Auth: -</div>
-  <div id="dbg-room">Room: -</div>
-  <div id="dbg-peers">Peers: 0</div>
-</div>
-
 <script>
 // ══════════════════════════════════════════════════════════
 //  StreamSync — Full Real Implementation
@@ -785,6 +776,9 @@ function receiveStream(stream) {
   v.muted = false;
   v.style.display = 'block';
   $('no-stream').style.display = 'none';
+  // Force play on mobile
+  const play = v.play();
+  if(play && play.catch) play.catch(e => console.warn('[video.play]', e));
   v.onloadedmetadata = () => {
     if(v.videoWidth) $('qual').textContent = v.videoWidth+'×'+v.videoHeight;
   };
