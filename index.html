@@ -294,6 +294,8 @@ input[type=text]:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(124,109,
 //  BroadcastChannel (same browser) + PeerJS (cross device)
 // ══════════════════════════════════════════════════════════
 
+console.log('===== INDEX.HTML LOADED =====');
+
 // ── State ──
 let myName = '', roomCode = '', myId = '';
 let peer = null, bc = null;
@@ -343,6 +345,7 @@ const FIREBASE_CONFIG = {
   appId: "1:600415328518:web:3f65d95bf13118f4832687",
   measurementId: "G-SKLS3LBYN4"
 };
+console.log('[STARTUP] FIREBASE_CONFIG present:', !!FIREBASE_CONFIG.apiKey);
 let firebaseApp = null, rdb = null, roomRef = null;
 
 function loadScript(src) {
@@ -357,12 +360,18 @@ function loadScript(src) {
 
 function initSignaling() {
   // Only initialize if config looks present
-  if(!FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.databaseURL) return;
+  console.log('[initSignaling] called, apiKey present:', !!FIREBASE_CONFIG.apiKey);
+  if(!FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.databaseURL) {
+    console.log('[initSignaling] config empty, skipping');
+    return;
+  }
+  console.log('[initSignaling] loading Firebase scripts...');
   Promise.all([
     loadScript('https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js'),
     loadScript('https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js'),
     loadScript('https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js')
   ]).then(() => {
+    console.log('[initSignaling] Firebase scripts loaded, initializing app');
     try {
       firebase.initializeApp(FIREBASE_CONFIG);
       firebaseApp = firebase.app();
