@@ -638,15 +638,32 @@ function initPeer() {
 
   // Incoming data (signaling/chat)
   peer.on('connection', conn => {
-    console.log('[PeerJS] incoming data connection from', conn.peer);
-    conn.on('open', () => {
-      const rid = remId(conn.peer);
-      if(!peers[rid]) peers[rid]={};
-      peers[rid].dataConn = conn;
-      conn.on('data', data => handleMsg(data, rid));
-      conn.on('close', () => { console.log('[data conn] closed', rid); peerLeft(rid); });
-      conn.on('error', e => console.warn('[data conn] error incoming', e));
-    });
+    console.log('[PeerJS] incoming data connection from', conn.peer, 'open:', conn.open);
+    const rid = remId(conn.peer);
+    if(peers[rid]?.dataConn) {
+      console.log('[PeerJS] already have conn for', rid, 'closing incoming');
+      try { conn.close(); } catch(e) {}
+      return;
+    }
+    if(!peers[rid]) peers[rid]={};
+    peers[rid].dataConn = conn;
+    
+    const setupConn = (c) => {
+      c.on('data', data => handleMsg(data, rid));
+      c.on('close', () => { console.log('[data conn] closed', rid); peerLeft(rid); });
+      c.on('error', e => console.warn('[data conn] error', rid, e));
+      console.log('[data conn] setup complete for', rid);
+    };
+    
+    if(conn.open) {
+      console.log('[data conn] incoming already open for', rid);
+      setupConn(conn);
+    } else {
+      conn.on('open', () => {
+        console.log('[data conn] incoming opened for', rid);
+        setupConn(conn);
+      });
+    }
   });
 
   // Incoming video/audio call
@@ -707,16 +724,9 @@ function connectData(rid) {
 function retryDataConnections() {
   if(!peer||!window.Peer) return;
   Object.keys(peers).forEach(rid => {
-    if(!peers[rid]?.dataConn || !peers[rid].dataConn.open) {
-      connectData(rid);
-    }
-  });
-}
-
-function retryDataConnections() {
-  if(!peer||!window.Peer) return;
-  Object.keys(peers).forEach(rid => {
-    if(!peers[rid]?.dataConn || !peers[rid].dataConn.open) {
+    const conn = peers[rid]?.dataConn;
+    if(!conn || !conn.open) {
+      console.log('[retryDataConnections] attempting for', rid, 'existing:', !!conn, 'open:', conn?.open);
       connectData(rid);
     }
   });
