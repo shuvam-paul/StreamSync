@@ -668,9 +668,10 @@ async function toggleMic() {
       $('btn-mic').textContent = '🎙️ Mic On';
       $('btn-mic').classList.add('on');
 
-      if(isHost&&localStream) {
+      if(isHost && localStream) {
+        localStream.getAudioTracks().forEach(t=>localStream.removeTrack(t));
         micStream.getAudioTracks().forEach(t=>localStream.addTrack(t));
-        Object.keys(peers).forEach(callPeer);
+        refreshScreenCalls();
       }
 
       audioCtx = new (window.AudioContext||window.webkitAudioContext)();
@@ -694,6 +695,10 @@ async function toggleMic() {
       toast('Mic on — friends can hear you');
     } catch(err) { toast('⚠️ Mic access denied: '+err.message); }
   } else {
+    if(isHost && localStream && micStream) {
+      micStream.getAudioTracks().forEach(t=>localStream.removeTrack(t));
+      refreshScreenCalls();
+    }
     if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
     if(speakTimer){clearInterval(speakTimer);speakTimer=null;}
     if(audioCtx){audioCtx.close();audioCtx=null;}
@@ -704,6 +709,16 @@ async function toggleMic() {
     removeVoice(myId);
     toast('Microphone off');
   }
+}
+
+function refreshScreenCalls() {
+  Object.keys(peers).forEach(rid => {
+    if(peers[rid]?.call) {
+      try { peers[rid].call.close(); } catch(e) {}
+      delete peers[rid].call;
+    }
+    if(isHost && localStream) callPeer(rid);
+  });
 }
 
 const addVoice = (id,name) => {
