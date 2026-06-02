@@ -304,6 +304,107 @@ const getShareURL = () => {
   u.searchParams.set('room', roomCode);
   return u.toString();
 };
+// Optional Firebase realtime DB signaling (for cross-device room discovery)
+let firebaseEnabled = false;
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA7K02oxHd5i0J12BAwhzlVTQ8IOQPB80E",
+  authDomain: "streamsync-2005.firebaseapp.com",
+  databaseURL: "https://streamsync-2005-default-rtdb.firebaseio.com",
+  projectId: "streamsync-2005",
+  storageBucket: "streamsync-2005.firebasestorage.app",
+  messagingSenderId: "600415328518",
+  appId: "1:600415328518:web:3f65d95bf13118f4832687",
+  measurementId: "G-SKLS3LBYN4"
+};
+let firebaseApp = null, rdb = null, roomRef = null;
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+function initSignaling() {
+  if(!FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.databaseURL) return;
+  Promise.all([
+    loadScript('https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js'),
+    loadScript('https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js'),
+    loadScript('https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js')
+  ]).then(() => {
+    try {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      firebaseApp = firebase.app();
+      rdb = firebase.database();
+      initFirebaseAuth();
+    } catch(e) {
+      console.warn('Firebase init failed', e);
+      firebaseEnabled = false;
+    }
+  }).catch(e => console.warn('Loading Firebase failed', e));
+}
+
+function initFirebaseAuth() {
+  if(!firebase || !firebase.auth) {
+    firebaseEnabled = true;
+    watchRoomPeers();
+    if(roomCode) signOn();
+    return;
+  }
+  firebase.auth().onAuthStateChanged(user => {
+    if(user) {
+      firebaseEnabled = true;
+      rdb = firebase.database();
+      watchRoomPeers();
+      if(roomCode) signOn();
+    } else {
+      firebase.auth().signInAnonymously().catch(err => {
+        console.warn('Firebase auth failed', err);
+        firebaseEnabled = true;
+        rdb = firebase.database();
+        watchRoomPeers();
+        if(roomCode) signOn();
+      });
+    }
+  });
+}
+
+function signOn() {
+  if(!firebaseEnabled||!rdb||!roomCode) return;
+  roomRef = rdb.ref('streamsync/rooms/'+roomCode+'/peers');
+  const myRef = roomRef.child(myId);
+  myRef.set({id: myId, name: myName, pjId: pjId(myId), ts: Date.now()});
+  myRef.onDisconnect().remove();
+}
+
+function signOff() {
+  try { if(roomRef && myId) roomRef.child(myId).remove(); } catch(e){}
+}
+
+function watchRoomPeers() {
+  if(!firebaseEnabled||!rdb) return;
+  const r = rdb.ref('streamsync/rooms/'+roomCode+'/peers');
+  r.on('child_added', snap => {
+    const data = snap.val(); if(!data) return;
+    if(data.id===myId) return;
+    const rid = data.id;
+    if(!peers[rid]) {
+      peers[rid] = {name: data.name||'?'};
+      sysMsg((data.name||'Someone')+' joined (via signaling)');
+      updateCount();
+      setTimeout(()=>connectData(rid), 400);
+      send(rid, {type:'announce-ack', id:myId, name:myName});
+      if(isHost&&localStream) setTimeout(()=>callPeer(rid), 1200);
+    }
+  });
+  r.on('child_removed', snap => {
+    const data = snap.val(); if(!data) return;
+    const rid = data.id; if(peers[rid]) peerLeft(rid);
+  });
+}
 
 let toastT;
 const toast = (msg, dur=3500) => {
@@ -414,6 +515,7 @@ function enterRoom() {
   } catch(e) { console.warn('BroadcastChannel not available:', e); }
 
   // Load PeerJS for cross-device
+  initSignaling();
   loadPeerJS(() => initPeer(), () => {
     console.warn('PeerJS not loaded — local BroadcastChannel mode only');
     setDot('d-sig','y'); $('t-sig').textContent='Local mode';
@@ -806,6 +908,7 @@ function doLeave() {
   if(isHost) stopShare();
   if(micEnabled) toggleMic();
   send(null,{type:'chat',id:myId,name:myName,text:'(left the room)'});
+  signOff();
   if(peer){peer.destroy();peer=null;}
   if(bc){bc.close();bc=null;}
   location.href=location.pathname;
