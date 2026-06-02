@@ -278,10 +278,11 @@ console.log('===== INDEX.HTML LOADED =====');
 let myName = '', roomCode = '', myId = '';
 let peer = null, bc = null;
 let peers = {};           // id → { name, dataConn?, call? }
-let localStream = null, micStream = null;
+let screenStream = null, micStream = null, localStream = null;
 let micEnabled = false, isHost = false, chatVisible = true;
 let audioCtx = null, analyser = null, speakTimer = null;
 let bitrateTimer = null, lastVBytes = 0, lastBTs = 0;
+let dataRetryTimer = null;
 
 // ICE servers: STUNs are fine for many local tests but mobile networks
 // often require a TURN relay. Replace the TURN placeholder below with
@@ -312,6 +313,26 @@ const getShareURL = () => {
   const u = new URL(location.href);
   u.searchParams.set('room', roomCode);
   return u.toString();
+};
+
+const buildLocalStream = () => {
+  const current = localStream;
+  let next = null;
+  if(screenStream && micStream) {
+    next = new MediaStream();
+    screenStream.getTracks().forEach(t => next.addTrack(t));
+    micStream.getAudioTracks().forEach(t => next.addTrack(t));
+  } else if(screenStream) {
+    next = screenStream;
+  } else if(micStream) {
+    next = micStream;
+  }
+
+  if(current && current !== screenStream && current !== micStream && current !== next) {
+    current.getTracks().forEach(t => t.stop());
+  }
+  localStream = next;
+  return localStream;
 };
 
 // Optional Firebase realtime DB signaling (for cross-device room discovery)
@@ -551,6 +572,7 @@ function enterRoom() {
     setDot('d-rtc','g'); $('t-rtc').textContent='Ready';
     announce();
   });
+  if(!dataRetryTimer) dataRetryTimer = setInterval(retryDataConnections, 4000);
 }
 
 function loadPeerJS(onOk, onFail) {
@@ -618,10 +640,10 @@ function initPeer() {
     });
   });
 
-  // Incoming video call
+  // Incoming video/audio call
   peer.on('call', call => {
     console.log('[PeerJS] incoming call from', call.peer);
-    try { call.answer(); } catch(e){ console.warn('[call.answer] error', e); }
+    try { call.answer(localStream || undefined); } catch(e){ console.warn('[call.answer] error', e); }
     call.on('stream', stream => {
       const rid = remId(call.peer);
       if(!peers[rid]) peers[rid]={};
@@ -670,6 +692,24 @@ function connectData(rid) {
     });
     conn.on('error', e => console.warn('[data conn] error', rid, e));
   } catch(e) { console.warn('[connectData]',e); }
+}
+
+function retryDataConnections() {
+  if(!peer||!window.Peer) return;
+  Object.keys(peers).forEach(rid => {
+    if(!peers[rid]?.dataConn || !peers[rid].dataConn.open) {
+      connectData(rid);
+    }
+  });
+}
+
+function retryDataConnections() {
+  if(!peer||!window.Peer) return;
+  Object.keys(peers).forEach(rid => {
+    if(!peers[rid]?.dataConn || !peers[rid].dataConn.open) {
+      connectData(rid);
+    }
+  });
 }
 
 function handleMsg(msg, src) {
@@ -728,9 +768,8 @@ async function startShare() {
       audio: { echoCancellation:false, noiseSuppression:false, sampleRate:48000, channelCount:2 }
     });
 
-    const tracks = [...disp.getTracks()];
-    if(micStream) micStream.getAudioTracks().forEach(t=>tracks.push(t));
-    localStream = new MediaStream(tracks);
+    screenStream = disp;
+    buildLocalStream();
     isHost = true;
 
     // Local preview (muted = no echo)
@@ -752,7 +791,7 @@ async function startShare() {
     b.onclick = stopShare;
 
     send(null, {type:'stream-start', id:myId, name:myName});
-    Object.keys(peers).forEach(callPeer);
+    refreshScreenCalls();
     vt.onended = () => stopShare();
 
     startBitrate();
@@ -769,15 +808,17 @@ async function startShare() {
 }
 
 function stopShare() {
-  if(localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream=null; }
+  if(screenStream) { screenStream.getTracks().forEach(t=>t.stop()); screenStream=null; }
+  buildLocalStream();
   isHost = false;
-  showNoStream();
+  if(!localStream) showNoStream();
   $('qual').textContent = '';
   const b = $('btn-share');
   b.textContent = '📺 Share Screen';
   b.className = 'hb share-btn';
   b.onclick = startShare;
   send(null, {type:'stream-stop', id:myId, name:myName});
+  refreshScreenCalls();
   stopBitrate();
   toast('Screen sharing stopped.');
 }
@@ -798,7 +839,18 @@ function callPeer(rid) {
 
 function receiveStream(stream) {
   const v = $('vid');
-  v.srcObject = stream;
+  const existing = v.srcObject;
+  const incomingHasVideo = stream.getVideoTracks().length > 0;
+  const currentHasVideo = existing && existing.getVideoTracks && existing.getVideoTracks().length > 0;
+
+  if(currentHasVideo && !incomingHasVideo) {
+    stream.getAudioTracks().forEach(t => {
+      try { existing.addTrack(t); } catch(e) { console.warn('[receiveStream] addTrack failed', e); }
+    });
+  } else {
+    v.srcObject = stream;
+  }
+
   v.muted = false;
   v.style.display = 'block';
   $('no-stream').style.display = 'none';
@@ -827,11 +879,8 @@ async function toggleMic() {
       $('btn-mic').textContent = '🎙️ Mic On';
       $('btn-mic').classList.add('on');
 
-      if(isHost && localStream) {
-        localStream.getAudioTracks().forEach(t=>localStream.removeTrack(t));
-        micStream.getAudioTracks().forEach(t=>localStream.addTrack(t));
-        refreshScreenCalls();
-      }
+      buildLocalStream();
+      if(localStream) refreshScreenCalls();
 
       audioCtx = new (window.AudioContext||window.webkitAudioContext)();
       const src = audioCtx.createMediaStreamSource(micStream);
@@ -854,11 +903,9 @@ async function toggleMic() {
       toast('Mic on — friends can hear you');
     } catch(err) { toast('⚠️ Mic access denied: '+err.message); }
   } else {
-    if(isHost && localStream && micStream) {
-      micStream.getAudioTracks().forEach(t=>localStream.removeTrack(t));
-      refreshScreenCalls();
-    }
-    if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+    if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
+    buildLocalStream();
+    if(localStream) refreshScreenCalls();
     if(speakTimer){clearInterval(speakTimer);speakTimer=null;}
     if(audioCtx){audioCtx.close();audioCtx=null;}
     micEnabled=false;
@@ -876,7 +923,7 @@ function refreshScreenCalls() {
       try { peers[rid].call.close(); } catch(e) {}
       delete peers[rid].call;
     }
-    if(isHost && localStream) callPeer(rid);
+    if(localStream) callPeer(rid);
   });
 }
 
@@ -966,6 +1013,7 @@ function doLeave() {
   if(micEnabled) toggleMic();
   send(null,{type:'chat',id:myId,name:myName,text:'(left the room)'});
   signOff();
+  if(dataRetryTimer){ clearInterval(dataRetryTimer); dataRetryTimer=null; }
   if(peer){peer.destroy();peer=null;}
   if(bc){bc.close();bc=null;}
   location.href=location.pathname;
