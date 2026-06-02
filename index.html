@@ -166,6 +166,21 @@ input[type=text]:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(124,109,
 </head>
 <body>
 
+<!-- persistent debug banner (visible even if JS fails) -->
+<div id="debug-banner" style="position:fixed;top:0;left:0;right:0;background:#111;color:#fff;padding:.45rem .8rem;font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:13px;z-index:99999;display:flex;gap:.8rem;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.6)">
+  <div style="display:flex;gap:.6rem;align-items:center">
+    <strong style="color:#7c6dfa;margin-right:.6rem">DEBUG</strong>
+    <span id="dbg-mini-fb">Firebase: ?</span>
+    <span id="dbg-mini-auth">Auth: ?</span>
+    <span id="dbg-mini-room">Room: ?</span>
+    <span id="dbg-mini-peers">Peers: ?</span>
+  </div>
+  <div style="display:flex;gap:.6rem;align-items:center">
+    <button id="dbg-mini-hide" style="background:transparent;border:1px solid rgba(255,255,255,.08);color:#fff;padding:.25rem .6rem;border-radius:6px;cursor:pointer">Hide</button>
+  </div>
+</div>
+
+
 <!-- ═══ LANDING ═══ -->
 <div id="page-land">
   <div>
