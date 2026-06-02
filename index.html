@@ -283,11 +283,16 @@ let micEnabled = false, isHost = false, chatVisible = true;
 let audioCtx = null, analyser = null, speakTimer = null;
 let bitrateTimer = null, lastVBytes = 0, lastBTs = 0;
 
+// ICE servers: STUNs are fine for many local tests but mobile networks
+// often require a TURN relay. Replace the TURN placeholder below with
+// your TURN server (coturn, Xirsys, Twilio, etc.) and credentials.
 const ICE = { iceServers:[
   {urls:'stun:stun.l.google.com:19302'},
   {urls:'stun:stun1.l.google.com:19302'},
   {urls:'stun:stun.cloudflare.com:3478'},
-  {urls:'stun:global.stun.twilio.com:3478'}
+  {urls:'stun:global.stun.twilio.com:3478'},
+  // Example TURN placeholder — REPLACE with real host/creds for production
+  // { urls: 'turn:your.turn.server:3478', username: 'TURN_USER', credential: 'TURN_PASS' }
 ]};
 
 // ── Util ──
@@ -588,6 +593,18 @@ function initPeer() {
     }
   });
 
+  peer.on('disconnected', () => {
+    console.warn('[PeerJS] disconnected');
+    toast('🔌 Peer connection lost — attempting reconnect');
+    setDot('d-sig','y'); $('t-sig').textContent='Reconnecting…';
+  });
+
+  peer.on('close', () => {
+    console.warn('[PeerJS] connection closed');
+    sysMsg('Signaling connection closed');
+    setDot('d-sig','y'); $('t-sig').textContent='Closed';
+  });
+
   // Incoming data (signaling/chat)
   peer.on('connection', conn => {
     console.log('[PeerJS] incoming data connection from', conn.peer);
@@ -596,7 +613,8 @@ function initPeer() {
       if(!peers[rid]) peers[rid]={};
       peers[rid].dataConn = conn;
       conn.on('data', data => handleMsg(data, rid));
-      conn.on('close', () => peerLeft(rid));
+      conn.on('close', () => { console.log('[data conn] closed', rid); peerLeft(rid); });
+      conn.on('error', e => console.warn('[data conn] error incoming', e));
     });
   });
 
@@ -611,6 +629,10 @@ function initPeer() {
       receiveStream(stream);
     });
     call.on('error', e => console.warn('[incoming call err]', e));
+    call.on('close', () => {
+      console.log('[incoming call] closed from', call.peer);
+      sysMsg('Call ended with '+remId(call.peer));
+    });
   });
 }
 
@@ -767,6 +789,10 @@ function callPeer(rid) {
     if(!peers[rid]) peers[rid]={};
     peers[rid].call = call;
     call.on('error', e=>console.warn('[callPeer]',e));
+    call.on('close', ()=>{
+      console.log('[callPeer] call closed to', rid);
+      sysMsg('Streaming connection closed with '+(peers[rid]?.name||rid));
+    });
   } catch(e) { console.warn('[callPeer]',e); }
 }
 
