@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StreamSync — Watch With Shuvam</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#07070d;--s1:#10101a;--s2:#171724;--s3:#1f1f2e;
+  --b1:rgba(255,255,255,.07);--b2:rgba(255,255,255,.13);
+  --ac:#7c6dfa;--ac2:#f06595;--gr:#00dea0;--rd:#ff5252;--yl:#ffd740;
+  --tx:#eeeef8;--mu:#73738a;--mu2:#a0a0b8;
+}
+html{height:100%}
+body{min-height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px}
+
+/* ═══ LANDING ═══ */
+#page-land{
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:2rem 1.2rem;gap:2rem;
+  background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(124,109,250,.14),transparent);
+}
+.logo{font-size:clamp(2.4rem,8vw,4rem);font-weight:900;letter-spacing:-2px;
+  background:linear-gradient(130deg,#fff 0%,#c4bdff 40%,var(--ac2) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  text-align:center;line-height:1}
+.tagline{font-size:.78rem;letter-spacing:.22em;text-transform:uppercase;color:var(--mu2);text-align:center;margin-top:.4rem}
+.card{background:var(--s1);border:1px solid var(--b2);border-radius:20px;padding:2rem;width:100%;max-width:430px}
+label{display:block;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--mu2);margin-bottom:.5rem}
+input[type=text]{
+  display:block;width:100%;background:var(--s2);border:1.5px solid var(--b1);border-radius:10px;
+  padding:.8rem 1rem;color:var(--tx);font-size:1rem;font-family:inherit;outline:none;
+  transition:border-color .2s,box-shadow .2s;margin-bottom:1.1rem
+}
+input[type=text]:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(124,109,250,.18)}
+.btn{display:block;width:100%;padding:.88rem;border-radius:12px;border:none;
+  font-size:.95rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;letter-spacing:.02em}
+.btn:active{transform:scale(.98)}
+.btn-p{background:linear-gradient(135deg,var(--ac),#9b5cf8);color:#fff;box-shadow:0 4px 22px rgba(124,109,250,.38)}
+.btn-p:hover{box-shadow:0 6px 30px rgba(124,109,250,.55);filter:brightness(1.08)}
+.btn-s{background:transparent;border:1.5px solid var(--b2);color:var(--tx);margin-top:.8rem}
+.btn-s:hover{border-color:var(--ac);background:rgba(124,109,250,.08)}
+.or{display:flex;align-items:center;gap:1rem;color:var(--mu);font-size:.74rem;margin:.6rem 0}
+.or::before,.or::after{content:'';flex:1;height:1px;background:var(--b1)}
+.err{display:none;color:var(--rd);font-size:.8rem;padding:.5rem .8rem;
+  background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.2);border-radius:8px;margin-bottom:.9rem}
+.err.on{display:block}
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;width:100%;max-width:430px}
+.feat{background:var(--s1);border:1px solid var(--b1);border-radius:13px;padding:.9rem .7rem;text-align:center}
+.feat-i{font-size:1.4rem;margin-bottom:.3rem}
+.feat-t{font-size:.67rem;color:var(--mu2);line-height:1.5}
+
+/* ═══ ROOM ═══ */
+#page-room{display:none;flex-direction:column;height:100vh}
+#page-room.on{display:flex}
+
+/* header */
+.rh{display:flex;align-items:center;justify-content:space-between;padding:.65rem 1rem;
+  background:var(--s1);border-bottom:1px solid var(--b1);flex-shrink:0;flex-wrap:wrap;gap:.5rem;z-index:20}
+.rh-left{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.rname{font-weight:800;font-size:.95rem;white-space:nowrap}
+.rbadge{font-size:.72rem;padding:.25rem .65rem;border-radius:7px;cursor:pointer;
+  background:rgba(124,109,250,.18);border:1px solid rgba(124,109,250,.3);color:#b8b0ff;
+  transition:background .2s;white-space:nowrap}
+.rbadge:hover{background:rgba(124,109,250,.32)}
+.rcnt{font-size:.7rem;color:var(--mu2);display:flex;align-items:center;gap:.35rem;white-space:nowrap}
+.rcnt-dot{width:6px;height:6px;border-radius:50%;background:var(--gr);box-shadow:0 0 7px var(--gr);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.rh-right{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap}
+.hb{display:flex;align-items:center;gap:.35rem;padding:.42rem .8rem;border-radius:8px;
+  border:1.5px solid var(--b1);background:var(--s2);color:var(--tx);
+  font-size:.76rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .18s;white-space:nowrap}
+.hb:hover{border-color:var(--ac)}
+.hb.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.hb.share-btn{background:linear-gradient(135deg,var(--ac),#9b5cf8);border-color:transparent;color:#fff;box-shadow:0 3px 14px rgba(124,109,250,.4)}
+.hb.share-btn:hover{filter:brightness(1.1)}
+.hb.stop-btn{background:var(--rd);border-color:var(--rd);color:#fff}
+.hb.danger{border-color:rgba(255,82,82,.3);color:var(--rd)}
+.hb.danger:hover{background:rgba(255,82,82,.1)}
+
+/* body */
+.rb{flex:1;display:flex;overflow:hidden;position:relative}
+
+/* video */
+#vid-wrap{flex:1;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+#vid{width:100%;height:100%;object-fit:contain;background:#000;display:none}
+.no-stream{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;pointer-events:none}
+.ns-ic{font-size:3rem;opacity:.3}
+.ns-tx{font-size:.88rem;color:var(--mu2);text-align:center;max-width:280px;line-height:1.7}
+.ns-sub{font-size:.7rem;font-family:monospace;color:var(--mu);opacity:.7}
+.vid-ov{position:absolute;bottom:0;left:0;right:0;padding:1.2rem 1.2rem .9rem;
+  background:linear-gradient(transparent,rgba(0,0,0,.75));
+  display:flex;align-items:center;gap:.7rem;opacity:0;transition:opacity .3s;pointer-events:none}
+#vid-wrap:hover .vid-ov{opacity:1;pointer-events:all}
+.ov-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;
+  padding:.45rem .9rem;border-radius:7px;cursor:pointer;font-size:.76rem;font-weight:700;
+  font-family:inherit;backdrop-filter:blur(8px);transition:background .2s}
+.ov-btn:hover{background:rgba(255,255,255,.28)}
+#qual{font-family:monospace;font-size:.7rem;color:rgba(255,255,255,.55);margin-left:auto}
+
+/* chat */
+#chat-panel{width:272px;min-width:272px;border-left:1px solid var(--b1);background:var(--s1);
+  display:flex;flex-direction:column;transition:width .3s,min-width .3s,opacity .3s}
+#chat-panel.hide{width:0;min-width:0;overflow:hidden;opacity:0}
+.ch-hd{padding:.75rem 1rem;border-bottom:1px solid var(--b1);font-size:.8rem;font-weight:800;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ch-hd span{cursor:pointer;opacity:.45;font-size:1rem;line-height:1}
+#ch-msgs{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.5rem}
+#ch-msgs::-webkit-scrollbar{width:3px}
+#ch-msgs::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+.cm{background:var(--s2);border:1px solid var(--b1);border-radius:9px;padding:.55rem .75rem;font-size:.8rem;line-height:1.5}
+.cm-n{font-size:.68rem;font-weight:800;color:var(--ac);margin-bottom:.15rem}
+.cm.me .cm-n{color:var(--ac2)}
+.cm.sys{background:transparent;border:none;text-align:center;color:var(--mu);font-size:.7rem;font-family:monospace}
+.ch-inp-row{padding:.7rem;border-top:1px solid var(--b1);display:flex;gap:.5rem;flex-shrink:0}
+.ch-inp{flex:1;background:var(--s2);border:1.5px solid var(--b1);border-radius:8px;
+  padding:.55rem .8rem;color:var(--tx);font-family:inherit;font-size:.8rem;outline:none;transition:border-color .2s}
+.ch-inp:focus{border-color:var(--ac)}
+.ch-send{background:var(--ac);border:none;border-radius:8px;color:#fff;padding:.55rem .85rem;cursor:pointer;font-size:.85rem;transition:background .2s}
+.ch-send:hover{background:#9b5cf8}
+
+/* status bar */
+.rst{display:flex;align-items:center;gap:.9rem;padding:.38rem 1rem;background:var(--s2);
+  border-top:1px solid var(--b1);flex-shrink:0;flex-wrap:wrap;font-family:monospace;font-size:.67rem;color:var(--mu)}
+.sti{display:flex;align-items:center;gap:.35rem}
+.sd{width:5px;height:5px;border-radius:50%;background:var(--mu)}
+.sd.g{background:var(--gr);box-shadow:0 0 6px var(--gr)}
+.sd.y{background:var(--yl);box-shadow:0 0 6px var(--yl)}
+.sd.r{background:var(--rd)}
+#voice-row{display:flex;gap:.4rem;flex-wrap:wrap}
+.vp{display:flex;align-items:center;gap:.3rem;padding:.18rem .5rem;border-radius:5px;
+  background:var(--s3);border:1px solid var(--b1);color:var(--mu2);font-size:.65rem}
+.vp.speaking{border-color:var(--gr);color:var(--gr);box-shadow:0 0 7px rgba(0,222,160,.2)}
+#bitrate{margin-left:auto;opacity:.5}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;z-index:100;padding:1.2rem}
+.modal-bg.hide{display:none}
+.modal{background:var(--s1);border:1px solid var(--b2);border-radius:18px;padding:1.8rem;width:100%;max-width:390px}
+.modal h3{font-size:1.15rem;font-weight:800;margin-bottom:.8rem}
+.minfo{font-size:.8rem;color:var(--mu2);line-height:1.6;margin-bottom:1.2rem}
+.code-box{background:var(--s2);border:1px solid var(--b2);border-radius:9px;padding:.9rem;
+  font-family:monospace;font-size:1.5rem;letter-spacing:.25em;text-align:center;color:var(--ac);margin-bottom:1rem}
+.link-box{background:var(--s2);border:1px solid var(--b2);border-radius:9px;padding:.75rem 1rem;
+  font-family:monospace;font-size:.72rem;word-break:break-all;color:var(--ac2);margin-bottom:1.2rem;line-height:1.6}
+.mbns{display:flex;gap:.7rem}
+
+/* toast */
+#toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(12px);
+  background:var(--s2);border:1px solid var(--b2);padding:.65rem 1.4rem;border-radius:30px;
+  font-size:.83rem;font-weight:700;opacity:0;transition:all .28s;pointer-events:none;z-index:999;white-space:nowrap}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* mobile chat overlay */
+@media(max-width:600px){
+  #chat-panel{position:absolute;right:0;top:0;bottom:0;width:100%!important;min-width:0!important;
+    transform:translateX(100%);transition:transform .3s;border:none;z-index:15;opacity:1!important}
+  #chat-panel.hide{transform:translateX(100%);width:100%!important;overflow:auto}
+  #chat-panel.mob-open{transform:translateX(0)}
+  .rname{font-size:.85rem}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ LANDING ═══ -->
+<div id="page-land">
+  <div>
+    <div class="logo">StreamSync By Shuvam</div>
+    <div class="tagline">Real Screen Share · Zero Quality Loss · Watch Together</div>
+  </div>
+
+  <div class="card">
+    <label for="inp-name">Your Name</label>
+    <input type="text" id="inp-name" placeholder="Enter your name…" maxlength="24" autocomplete="off" spellcheck="false">
+
+    <label for="inp-code">Room Code</label>
+    <input type="text" id="inp-code" placeholder="E.G. FILM-4392" maxlength="20" autocomplete="off" spellcheck="false" style="text-transform:uppercase;letter-spacing:.12em;font-weight:700">
+
+    <div id="land-err" class="err"></div>
+
+    <button class="btn btn-p" id="btn-join">🚀 Enter Room</button>
+    <div class="or">or</div>
+    <button class="btn btn-s" id="btn-create">✨ Create New Room (auto code)</button>
+  </div>
+
+  <div class="feats">
+    <div class="feat"><div class="feat-i">🖥️</div><div class="feat-t">Real screen capture — any tab, app or full display</div></div>
+    <div class="feat"><div class="feat-i">⚡</div><div class="feat-t">WebRTC P2P — zero compression, full 4K quality</div></div>
+    <div class="feat"><div class="feat-i">🎙️</div><div class="feat-t">Live voice chat + text chat for everyone</div></div>
+  </div>
+</div>
+
+<!-- ═══ ROOM ═══ -->
+<div id="page-room">
+  <!-- header -->
+  <div class="rh">
+    <div class="rh-left">
+      <span class="rname" id="rname">Room</span>
+      <span class="rbadge" id="rbadge" title="Click to invite friends">🔗 CODE</span>
+      <span class="rcnt"><span class="rcnt-dot"></span><span id="rcnt">1 watching</span></span>
+    </div>
+    <div class="rh-right">
+      <button class="hb share-btn" id="btn-share">📺 Share Screen</button>
+      <button class="hb" id="btn-mic">🎙️ Mic Off</button>
+      <button class="hb" id="btn-chat">💬 Chat</button>
+      <button class="hb danger" id="btn-leave">✕ Leave</button>
+    </div>
+  </div>
+
+  <!-- video + chat -->
+  <div class="rb">
+    <div id="vid-wrap">
+      <video id="vid" autoplay playsinline></video>
+      <div class="no-stream" id="no-stream">
+        <div class="ns-ic">📡</div>
+        <div class="ns-tx">No stream yet.<br><b>Host</b> clicks <b>Share Screen</b> to broadcast any tab — Netflix, YouTube, anything.</div>
+        <div class="ns-sub">Waiting for stream…</div>
+      </div>
+      <div class="vid-ov">
+        <button class="ov-btn" id="btn-fs">⛶ Fullscreen</button>
+        <button class="ov-btn" id="btn-pip">⧉ PiP</button>
+        <span id="qual"></span>
+      </div>
+    </div>
+    <div id="chat-panel">
+      <div class="ch-hd">💬 Live Chat <span id="chat-close">✕</span></div>
+      <div id="ch-msgs"><div class="cm sys">— Chat ready. Say hi! —</div></div>
+      <div class="ch-inp-row">
+        <input class="ch-inp" id="ch-inp" type="text" placeholder="Message…" maxlength="200" autocomplete="off">
+        <button class="ch-send" id="btn-send">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- status -->
+  <div class="rst">
+    <div class="sti"><span class="sd" id="d-sig"></span><span id="t-sig">Connecting…</span></div>
+    <div class="sti"><span class="sd" id="d-rtc"></span><span id="t-rtc">WebRTC</span></div>
+    <div id="voice-row"></div>
+    <span id="bitrate"></span>
+  </div>
+</div>
+
+<!-- ═══ SHARE MODAL ═══ -->
+<div class="modal-bg hide" id="modal-share">
+  <div class="modal">
+    <h3>📨 Invite Friends</h3>
+    <div class="minfo">Share the link below. Friends open it in their browser, enter the same room code, and you all watch together instantly.</div>
+    <div style="font-size:.67rem;letter-spacing:.15em;text-transform:uppercase;color:var(--mu);margin-bottom:.4rem">Room Code</div>
+    <div class="code-box" id="m-code">—</div>
+    <div style="font-size:.67rem;letter-spacing:.15em;text-transform:uppercase;color:var(--mu);margin-bottom:.4rem">Share Link</div>
+    <div class="link-box" id="m-link">—</div>
+    <div class="mbns">
+      <button class="btn btn-p" style="font-size:.85rem" id="btn-copy-link">📋 Copy Link</button>
+      <button class="btn btn-s" style="font-size:.85rem;margin:0" id="btn-close-modal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- toast -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  StreamSync — Full Real Implementation
+//  BroadcastChannel (same browser) + PeerJS (cross device)
+// ══════════════════════════════════════════════════════════
+
+// ── State ──
+let myName = '', roomCode = '', myId = '';
+let peer = null, bc = null;
+let peers = {};           // id → { name, dataConn?, call? }
+let localStream = null, micStream = null;
+let micEnabled = false, isHost = false, chatVisible = true;
+let audioCtx = null, analyser = null, speakTimer = null;
+let bitrateTimer = null, lastVBytes = 0, lastBTs = 0;
+
+const ICE = { iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun.cloudflare.com:3478'},
+  {urls:'stun:global.stun.twilio.com:3478'}
+]};
+
+// ── Util ──
+const $ = id => document.getElementById(id);
+const uid = () => Math.random().toString(36).substr(2,9);
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const genCode = () => {
+  const w=['NOVA','STAR','FILM','SYNC','WAVE','VIBE','BEAM','ECHO','FLUX','HALO'];
+  return w[Math.floor(Math.random()*w.length)]+'-'+Math.floor(1000+Math.random()*9000);
+};
+const pjId = id => 'ss-'+roomCode.replace(/[^A-Z0-9]/g,'')+'-'+id;
+const remId = full => {
+  const pre = 'ss-'+roomCode.replace(/[^A-Z0-9]/g,'')+'-';
+  return full.startsWith(pre) ? full.slice(pre.length) : full;
+};
+const getShareURL = () => {
+  const u = new URL(location.href);
+  u.searchParams.set('room', roomCode);
+  return u.toString();
+};
+
+let toastT;
+const toast = (msg, dur=3500) => {
+  const el=$('toast'); el.textContent=msg; el.classList.add('on');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),dur);
+};
+
+const showErr = msg => {
+  const el=$('land-err'); el.textContent=msg; el.classList.add('on');
+  setTimeout(()=>el.classList.remove('on'),4000);
+};
+
+const setDot = (id, state) => {
+  $(id).className = 'sd'+(state==='g'?' g':state==='y'?' y':state==='r'?' r':'');
+};
+
+const updateCount = () => {
+  const n = 1+Object.keys(peers).length;
+  $('rcnt').textContent = n+' watching';
+};
+
+// ── Boot ──
+window.addEventListener('DOMContentLoaded', () => {
+  // Restore name
+  const saved = localStorage.getItem('ss_name');
+  if(saved) $('inp-name').value = saved;
+  // Pre-fill room from URL
+  const urlRoom = new URLSearchParams(location.search).get('room');
+  if(urlRoom) { $('inp-code').value = urlRoom.toUpperCase(); toast('Room code pre-filled from link!'); }
+
+  // Input formatting
+  $('inp-code').addEventListener('input', e => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g,'');
+  });
+  $('inp-name').addEventListener('keydown', e => { if(e.key==='Enter') $('inp-code').focus(); });
+  $('inp-code').addEventListener('keydown', e => { if(e.key==='Enter') doJoin(); });
+  $('ch-inp').addEventListener('keydown', e => { if(e.key==='Enter') sendChat(); });
+
+  // Buttons — landing
+  $('btn-join').addEventListener('click', doJoin);
+  $('btn-create').addEventListener('click', doCreate);
+
+  // Buttons — room header
+  $('btn-share').addEventListener('click', startShare);
+  $('btn-mic').addEventListener('click', toggleMic);
+  $('btn-chat').addEventListener('click', toggleChat);
+  $('btn-leave').addEventListener('click', doLeave);
+
+  // Video overlay
+  $('btn-fs').addEventListener('click', goFullscreen);
+  $('btn-pip').addEventListener('click', goPiP);
+  $('vid').addEventListener('dblclick', goFullscreen);
+
+  // Chat
+  $('btn-send').addEventListener('click', sendChat);
+  $('chat-close').addEventListener('click', toggleChat);
+
+  // Modal
+  $('rbadge').addEventListener('click', openModal);
+  $('btn-copy-link').addEventListener('click', copyLink);
+  $('btn-close-modal').addEventListener('click', closeModal);
+  $('modal-share').addEventListener('click', e => { if(e.target===$('modal-share')) closeModal(); });
+});
+
+// ── Landing actions ──
+function doCreate() {
+  $('inp-code').value = genCode();
+  doJoin();
+}
+
+function doJoin() {
+  const name = $('inp-name').value.trim();
+  const code = $('inp-code').value.trim().toUpperCase();
+  if(!name) { showErr('Please enter your name first.'); $('inp-name').focus(); return; }
+  if(!code) { showErr('Please enter a room code.'); $('inp-code').focus(); return; }
+  myName = name;
+  roomCode = code;
+  myId = uid();
+  localStorage.setItem('ss_name', myName);
+
+  // Update URL without reload
+  try {
+    const u = new URL(location.href);
+    u.searchParams.set('room', roomCode);
+    history.replaceState({}, '', u);
+  } catch(e){}
+
+  enterRoom();
+}
+
+// ── Enter Room ──
+function enterRoom() {
+  // Hide landing, show room
+  $('page-land').style.display = 'none';
+  $('page-room').style.display = 'flex';
+  $('page-room').classList.add('on');
+
+  $('rname').textContent = myName + "'s Room";
+  $('rbadge').textContent = '🔗 ' + roomCode;
+
+  setDot('d-sig','y'); $('t-sig').textContent='Connecting…';
+  setDot('d-rtc',''); $('t-rtc').textContent='Waiting';
+
+  // BroadcastChannel for same-browser multi-tab
+  try {
+    bc = new BroadcastChannel('ss-'+roomCode);
+    bc.onmessage = ev => handleMsg(ev.data, 'bc');
+  } catch(e) { console.warn('BroadcastChannel not available:', e); }
+
+  // Load PeerJS for cross-device
+  loadPeerJS(() => initPeer(), () => {
+    console.warn('PeerJS not loaded — local BroadcastChannel mode only');
+    setDot('d-sig','y'); $('t-sig').textContent='Local mode';
+    setDot('d-rtc','g'); $('t-rtc').textContent='Ready';
+    announce();
+  });
+}
+
+function loadPeerJS(onOk, onFail) {
+  if(window.Peer) { onOk(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+  s.onload = onOk;
+  s.onerror = onFail;
+  document.head.appendChild(s);
+}
+
+// ── PeerJS Init ──
+function initPeer() {
+  const fullId = pjId(myId);
+  peer = new window.Peer(fullId, {
+    host: '0.peerjs.com', port: 443, path: '/', secure: true,
+    config: ICE, debug: 0
+  });
+
+  peer.on('open', id => {
+    console.log('[PeerJS] open:', id);
+    setDot('d-sig','g'); $('t-sig').textContent='Connected';
+    setDot('d-rtc','g'); $('t-rtc').textContent='Mesh ready';
+    announce();
+  });
+
+  peer.on('error', err => {
+    console.warn('[PeerJS] error:', err.type, err.message);
+    if(err.type==='unavailable-id') {
+      // ID collision — regenerate
+      peer.destroy(); peer=null;
+      myId = uid();
+      setTimeout(initPeer, 600);
+    } else if(err.type==='network'||err.type==='server-error') {
+      setDot('d-sig','y'); $('t-sig').textContent='Local mode only';
+      setDot('d-rtc','g'); $('t-rtc').textContent='Ready';
+      if(!Object.keys(peers).length) announce();
+    } else {
+      setDot('d-sig','y'); $('t-sig').textContent='Limited connectivity';
+    }
+  });
+
+  // Incoming data (signaling/chat)
+  peer.on('connection', conn => {
+    conn.on('open', () => {
+      const rid = remId(conn.peer);
+      if(!peers[rid]) peers[rid]={};
+      peers[rid].dataConn = conn;
+      conn.on('data', data => handleMsg(data, rid));
+      conn.on('close', () => peerLeft(rid));
+    });
+  });
+
+  // Incoming video call
+  peer.on('call', call => {
+    call.answer();
+    call.on('stream', stream => {
+      const rid = remId(call.peer);
+      if(!peers[rid]) peers[rid]={};
+      peers[rid].call = call;
+      receiveStream(stream);
+    });
+    call.on('error', e => console.warn('[incoming call err]', e));
+  });
+}
+
+// ── Messaging ──
+function announce() {
+  send(null, {type:'announce', id:myId, name:myName});
+  sysMsg(myName+' joined the room');
+  updateCount();
+}
+
+function send(targetId, msg) {
+  if(bc) try { bc.postMessage(msg); } catch(e){}
+  if(targetId) {
+    const p = peers[targetId];
+    if(p?.dataConn?.open) try { p.dataConn.send(msg); } catch(e){}
+  } else {
+    Object.values(peers).forEach(p => {
+      if(p?.dataConn?.open) try { p.dataConn.send(msg); } catch(e){}
+    });
+  }
+}
+
+function connectData(rid) {
+  if(!peer||!window.Peer) return;
+  if(peers[rid]?.dataConn) return;
+  try {
+    const conn = peer.connect(pjId(rid), {reliable:true, serialization:'json'});
+    conn.on('open', () => {
+      if(!peers[rid]) peers[rid]={};
+      peers[rid].dataConn = conn;
+      conn.on('data', data => handleMsg(data, rid));
+      conn.on('close', () => peerLeft(rid));
+    });
+    conn.on('error', e => console.warn('[data conn]',e));
+  } catch(e) { console.warn('[connectData]',e); }
+}
+
+function handleMsg(msg, src) {
+  if(!msg||typeof msg!=='object') return;
+  const from = msg.id || src;
+  if(from===myId||from==='bc') return;
+
+  switch(msg.type) {
+    case 'announce':
+      if(!peers[from]) {
+        peers[from] = {name: msg.name||'?'};
+        sysMsg((msg.name||'Someone')+' joined');
+        updateCount();
+        setTimeout(()=>connectData(from), 400);
+        send(from, {type:'announce-ack', id:myId, name:myName});
+        if(isHost&&localStream) setTimeout(()=>callPeer(from), 1200);
+      }
+      break;
+    case 'announce-ack':
+      if(!peers[from]) {
+        peers[from] = {name: msg.name||'?'};
+        updateCount();
+        setTimeout(()=>connectData(from), 400);
+      }
+      break;
+    case 'chat':
+      addMsg(msg.name, msg.text, false, false);
+      break;
+    case 'stream-start':
+      sysMsg((msg.name||'Host')+' started streaming');
+      setDot('d-rtc','g'); $('t-rtc').textContent='Receiving stream';
+      break;
+    case 'stream-stop':
+      sysMsg((msg.name||'Host')+' stopped streaming');
+      showNoStream();
+      break;
+    case 'voice':
+      updateVoice(from, msg.name, msg.speaking);
+      break;
+  }
+}
+
+function peerLeft(rid) {
+  const name = peers[rid]?.name||'Someone';
+  delete peers[rid];
+  sysMsg(name+' left');
+  updateCount();
+  removeVoice(rid);
+}
+
+// ── Screen Share ──
+async function startShare() {
+  try {
+    const disp = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate:{ideal:60,max:60}, cursor:'always' },
+      audio: { echoCancellation:false, noiseSuppression:false, sampleRate:48000, channelCount:2 }
+    });
+
+    const tracks = [...disp.getTracks()];
+    if(micStream) micStream.getAudioTracks().forEach(t=>tracks.push(t));
+    localStream = new MediaStream(tracks);
+    isHost = true;
+
+    // Local preview (muted = no echo)
+    const v = $('vid');
+    v.srcObject = localStream;
+    v.muted = true;
+    v.style.display = 'block';
+    $('no-stream').style.display = 'none';
+
+    // Quality label
+    const vt = disp.getVideoTracks()[0];
+    const st = vt.getSettings();
+    $('qual').textContent = (st.width||'?')+'×'+(st.height||'?')+' @'+(st.frameRate?Math.round(st.frameRate):60)+'fps';
+
+    // Update button
+    const b = $('btn-share');
+    b.textContent = '⏹ Stop Share';
+    b.className = 'hb stop-btn';
+    b.onclick = stopShare;
+
+    send(null, {type:'stream-start', id:myId, name:myName});
+    Object.keys(peers).forEach(callPeer);
+    vt.onended = () => stopShare();
+
+    startBitrate();
+    toast('🎬 Streaming! All friends in this room can see your screen.');
+
+  } catch(err) {
+    console.error('[getDisplayMedia]', err);
+    const n = err.name;
+    if(n==='NotAllowedError')       toast('⚠️ Permission denied — allow screen sharing in the browser prompt.');
+    else if(n==='NotSupportedError') toast('⚠️ Screen capture not supported on this browser/device.');
+    else if(n==='AbortError')        toast('Screen share cancelled.');
+    else                             toast('⚠️ Could not start: '+err.message);
+  }
+}
+
+function stopShare() {
+  if(localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream=null; }
+  isHost = false;
+  showNoStream();
+  $('qual').textContent = '';
+  const b = $('btn-share');
+  b.textContent = '📺 Share Screen';
+  b.className = 'hb share-btn';
+  b.onclick = startShare;
+  send(null, {type:'stream-stop', id:myId, name:myName});
+  stopBitrate();
+  toast('Screen sharing stopped.');
+}
+
+function callPeer(rid) {
+  if(!peer||!localStream) return;
+  try {
+    const call = peer.call(pjId(rid), localStream);
+    if(!peers[rid]) peers[rid]={};
+    peers[rid].call = call;
+    call.on('error', e=>console.warn('[callPeer]',e));
+  } catch(e) { console.warn('[callPeer]',e); }
+}
+
+function receiveStream(stream) {
+  const v = $('vid');
+  v.srcObject = stream;
+  v.muted = false;
+  v.style.display = 'block';
+  $('no-stream').style.display = 'none';
+  v.onloadedmetadata = () => {
+    if(v.videoWidth) $('qual').textContent = v.videoWidth+'×'+v.videoHeight;
+  };
+  toast('🎬 Stream received! Watching together now.');
+}
+
+function showNoStream() {
+  const v = $('vid'); v.srcObject=null; v.style.display='none';
+  $('no-stream').style.display='flex';
+}
+
+// ── Mic ──
+async function toggleMic() {
+  if(!micEnabled) {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {echoCancellation:true, noiseSuppression:true, autoGainControl:true}
+      });
+      micEnabled = true;
+      $('btn-mic').textContent = '🎙️ Mic On';
+      $('btn-mic').classList.add('on');
+
+      if(isHost&&localStream) {
+        micStream.getAudioTracks().forEach(t=>localStream.addTrack(t));
+        Object.keys(peers).forEach(callPeer);
+      }
+
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      const src = audioCtx.createMediaStreamSource(micStream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      src.connect(analyser);
+      let wasSpk = false;
+      speakTimer = setInterval(()=>{
+        const d = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(d);
+        const avg = d.reduce((a,b)=>a+b,0)/d.length;
+        const now = avg>18;
+        if(now!==wasSpk) {
+          wasSpk=now;
+          send(null,{type:'voice',id:myId,name:myName,speaking:now});
+          updateVoice(myId,myName+' (you)',now);
+        }
+      },150);
+      addVoice(myId,myName+' (you)');
+      toast('Mic on — friends can hear you');
+    } catch(err) { toast('⚠️ Mic access denied: '+err.message); }
+  } else {
+    if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+    if(speakTimer){clearInterval(speakTimer);speakTimer=null;}
+    if(audioCtx){audioCtx.close();audioCtx=null;}
+    micEnabled=false;
+    $('btn-mic').textContent='🎙️ Mic Off';
+    $('btn-mic').classList.remove('on');
+    send(null,{type:'voice',id:myId,name:myName,speaking:false});
+    removeVoice(myId);
+    toast('Microphone off');
+  }
+}
+
+const addVoice = (id,name) => {
+  if($('vp-'+id)) return;
+  const d=document.createElement('div');
+  d.className='vp'; d.id='vp-'+id;
+  d.textContent='🎙 '+name;
+  $('voice-row').appendChild(d);
+};
+const updateVoice = (id,name,spk) => {
+  let d=$('vp-'+id);
+  if(!d&&spk){addVoice(id,name);d=$('vp-'+id);}
+  if(d) d.className='vp'+(spk?' speaking':'');
+};
+const removeVoice = id => { const d=$('vp-'+id);if(d)d.remove(); };
+
+// ── Chat ──
+function sendChat() {
+  const inp = $('ch-inp'), t = inp.value.trim();
+  if(!t) return;
+  inp.value='';
+  addMsg(myName,t,false,true);
+  send(null,{type:'chat',id:myId,name:myName,text:t});
+}
+
+function addMsg(name,text,sys,me) {
+  const c=$('ch-msgs'), d=document.createElement('div');
+  if(sys){
+    d.className='cm sys'; d.textContent='— '+text+' —';
+  } else {
+    d.className='cm'+(me?' me':'');
+    d.innerHTML='<div class="cm-n">'+esc(name||'?')+'</div>'+esc(text);
+  }
+  c.appendChild(d);
+  c.scrollTop=c.scrollHeight;
+}
+const sysMsg = t => addMsg(null,t,true,false);
+
+function toggleChat() {
+  const p=$('chat-panel');
+  if(window.innerWidth<=600) {
+    p.classList.toggle('mob-open');
+  } else {
+    chatVisible=!chatVisible;
+    p.classList.toggle('hide',!chatVisible);
+  }
+}
+
+// ── Fullscreen / PiP ──
+function goFullscreen() {
+  const w=$('vid-wrap'), v=$('vid');
+  if(w.requestFullscreen) w.requestFullscreen();
+  else if(w.webkitRequestFullscreen) w.webkitRequestFullscreen();
+  else if(v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+}
+
+async function goPiP() {
+  const v=$('vid');
+  try {
+    if(document.pictureInPictureElement) await document.exitPictureInPicture();
+    else if(v.requestPictureInPicture) await v.requestPictureInPicture();
+    else toast('PiP not available on this device');
+  } catch(e){ toast('PiP: '+e.message); }
+}
+
+// ── Bitrate ──
+function startBitrate() {
+  lastVBytes=0; lastBTs=Date.now();
+  bitrateTimer=setInterval(()=>{
+    const v=$('vid');
+    if(v.webkitVideoDecodedByteCount!=null){
+      const now=Date.now(),dt=(now-lastBTs)/1000;
+      if(dt>0&&lastVBytes>0){
+        const kbps=(v.webkitVideoDecodedByteCount-lastVBytes)*8/dt/1000;
+        $('bitrate').textContent=kbps>900?(kbps/1000).toFixed(1)+' Mbps':Math.round(kbps)+' Kbps';
+      }
+      lastVBytes=v.webkitVideoDecodedByteCount; lastBTs=now;
+    }
+  },2000);
+}
+function stopBitrate(){if(bitrateTimer){clearInterval(bitrateTimer);bitrateTimer=null;}$('bitrate').textContent='';}
+
+// ── Leave ──
+function doLeave() {
+  if(isHost) stopShare();
+  if(micEnabled) toggleMic();
+  send(null,{type:'chat',id:myId,name:myName,text:'(left the room)'});
+  if(peer){peer.destroy();peer=null;}
+  if(bc){bc.close();bc=null;}
+  location.href=location.pathname;
+}
+
+// ── Modal ──
+function openModal() {
+  $('m-code').textContent=roomCode;
+  $('m-link').textContent=getShareURL();
+  $('modal-share').classList.remove('hide');
+}
+function closeModal(){$('modal-share').classList.add('hide');}
+async function copyLink(){
+  try{
+    await navigator.clipboard.writeText(getShareURL());
+    toast('✅ Link copied! Send it to your friends.');
+  }catch(e){
+    // fallback
+    const t=document.createElement('textarea');
+    t.value=getShareURL(); document.body.appendChild(t);
+    t.select(); document.execCommand('copy'); document.body.removeChild(t);
+    toast('✅ Link copied!');
+  }
+}
+</script>
+</body>
+</html>
