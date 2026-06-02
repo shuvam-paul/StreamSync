@@ -578,11 +578,22 @@ function enterRoom() {
 
 function loadPeerJS(onOk, onFail) {
   if(window.Peer) { onOk(); return; }
-  const s = document.createElement('script');
-  s.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
-  s.onload = onOk;
-  s.onerror = onFail;
-  document.head.appendChild(s);
+  const tryLoad = src => {
+    const s = document.createElement('script');
+    s.crossOrigin = 'anonymous';
+    s.src = src;
+    s.onload = onOk;
+    s.onerror = () => {
+      console.warn('[loadPeerJS] failed to load', src);
+      if(src.includes('unpkg.com')) {
+        tryLoad('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js');
+      } else {
+        onFail();
+      }
+    };
+    document.head.appendChild(s);
+  };
+  tryLoad('https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js');
 }
 
 // ── PeerJS Init ──
@@ -620,10 +631,7 @@ function initPeer() {
     console.warn('[PeerJS] disconnected');
     toast('🔌 Peer connection lost — attempting reconnect');
     setDot('d-sig','y'); $('t-sig').textContent='Reconnecting…';
-  });
-
-  peer.on('close', () => {
-    console.warn('[PeerJS] connection closed');
+    try { peer.reconnect(); } catch(e) { console.warn('[PeerJS] reconnect failed', e); }
     sysMsg('Signaling connection closed');
     setDot('d-sig','y'); $('t-sig').textContent='Closed';
   });
@@ -683,15 +691,16 @@ function connectData(rid) {
   if(peers[rid]?.dataConn) return;
   try {
     console.log('[connectData] attempting connect to', pjId(rid), 'for rid', rid);
-    const conn = peer.connect(pjId(rid), {reliable:true, serialization:'json'});
+    const conn = peer.connect(pjId(rid), {reliable:true});
     conn.on('open', () => {
       console.log('[data conn] open to', rid, conn.peer);
       if(!peers[rid]) peers[rid]={};
       peers[rid].dataConn = conn;
       conn.on('data', data => handleMsg(data, rid));
       conn.on('close', () => { console.log('[data conn] closed', rid); peerLeft(rid); });
+      conn.on('error', e => console.warn('[data conn] error', rid, e));
     });
-    conn.on('error', e => console.warn('[data conn] error', rid, e));
+    conn.on('error', e => console.warn('[connectData] error', rid, e));
   } catch(e) { console.warn('[connectData]',e); }
 }
 
