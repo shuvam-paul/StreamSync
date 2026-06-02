@@ -264,6 +264,15 @@ input[type=text]:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(124,109,
 <!-- toast -->
 <div id="toast"></div>
 
+<!-- debug panel -->
+<div id="debug-panel" style="position:fixed;left:12px;bottom:12px;background:rgba(0,0,0,.6);color:#fff;padding:8px;border-radius:8px;font-family:monospace;font-size:12px;z-index:999;max-width:320px">
+  <div><strong>Debug</strong></div>
+  <div id="dbg-fb">Firebase: -</div>
+  <div id="dbg-auth">Auth: -</div>
+  <div id="dbg-room">Room: -</div>
+  <div id="dbg-peers">Peers: 0</div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════════
 //  StreamSync — Full Real Implementation
@@ -364,6 +373,8 @@ function initFirebaseAuth() {
       rdb = firebase.database();
       watchRoomPeers();
       if(roomCode) signOn();
+      console.log('[Firebase] auth signed in', user.uid);
+      try{ updateDebug(); }catch(e){}
     } else {
       firebase.auth().signInAnonymously().catch(err => {
         console.warn('Firebase auth failed', err);
@@ -371,6 +382,8 @@ function initFirebaseAuth() {
         rdb = firebase.database();
         watchRoomPeers();
         if(roomCode) signOn();
+        console.log('[Firebase] auth anonymous sign-in requested/failed fallback');
+        try{ updateDebug(); }catch(e){}
       });
     }
   });
@@ -382,10 +395,14 @@ function signOn() {
   const myRef = roomRef.child(myId);
   myRef.set({id: myId, name: myName, pjId: pjId(myId), ts: Date.now()});
   myRef.onDisconnect().remove();
+  console.log('[Firebase] signOn', roomCode, myId);
+  try{ updateDebug(); }catch(e){}
 }
 
 function signOff() {
   try { if(roomRef && myId) roomRef.child(myId).remove(); } catch(e){}
+  console.log('[Firebase] signOff', roomCode, myId);
+  try{ updateDebug(); }catch(e){}
 }
 
 function watchRoomPeers() {
@@ -402,12 +419,26 @@ function watchRoomPeers() {
       setTimeout(()=>connectData(rid), 400);
       send(rid, {type:'announce-ack', id:myId, name:myName});
       if(isHost&&localStream) setTimeout(()=>callPeer(rid), 1200);
+      console.log('[Firebase] child_added', rid, data.name);
+      try{ updateDebug(); }catch(e){}
     }
   });
   r.on('child_removed', snap => {
     const data = snap.val(); if(!data) return;
     const rid = data.id; if(peers[rid]) peerLeft(rid);
+    console.log('[Firebase] child_removed', rid);
+    try{ updateDebug(); }catch(e){}
   });
+}
+
+function updateDebug(){
+  try{
+    $('dbg-fb').textContent = 'Firebase: ' + (firebaseEnabled? 'ready':'inactive');
+    const au = (window.firebase && firebase.auth && firebase.auth().currentUser && firebase.auth().currentUser.uid) || 'none';
+    $('dbg-auth').textContent = 'Auth: ' + au;
+    $('dbg-room').textContent = 'Room: ' + (roomCode||'-');
+    $('dbg-peers').textContent = 'Peers: ' + Object.keys(peers).length;
+  }catch(e){}
 }
 
 let toastT;
@@ -572,6 +603,7 @@ function initPeer() {
 
   // Incoming data (signaling/chat)
   peer.on('connection', conn => {
+    console.log('[PeerJS] incoming data connection from', conn.peer);
     conn.on('open', () => {
       const rid = remId(conn.peer);
       if(!peers[rid]) peers[rid]={};
@@ -583,7 +615,8 @@ function initPeer() {
 
   // Incoming video call
   peer.on('call', call => {
-    call.answer();
+    console.log('[PeerJS] incoming call from', call.peer);
+    try { call.answer(); } catch(e){ console.warn('[call.answer] error', e); }
     call.on('stream', stream => {
       const rid = remId(call.peer);
       if(!peers[rid]) peers[rid]={};
@@ -617,14 +650,16 @@ function connectData(rid) {
   if(!peer||!window.Peer) return;
   if(peers[rid]?.dataConn) return;
   try {
+    console.log('[connectData] attempting connect to', pjId(rid), 'for rid', rid);
     const conn = peer.connect(pjId(rid), {reliable:true, serialization:'json'});
     conn.on('open', () => {
+      console.log('[data conn] open to', rid, conn.peer);
       if(!peers[rid]) peers[rid]={};
       peers[rid].dataConn = conn;
       conn.on('data', data => handleMsg(data, rid));
-      conn.on('close', () => peerLeft(rid));
+      conn.on('close', () => { console.log('[data conn] closed', rid); peerLeft(rid); });
     });
-    conn.on('error', e => console.warn('[data conn]',e));
+    conn.on('error', e => console.warn('[data conn] error', rid, e));
   } catch(e) { console.warn('[connectData]',e); }
 }
 
